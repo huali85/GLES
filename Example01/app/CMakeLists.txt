@@ -22,13 +22,13 @@ set(FRAMEWORK_DIR ${CMAKE_SOURCE_DIR}/../../Framework)
 add_library( game SHARED
              ${FRAMEWORK_DIR}/FrameBuffer.cpp
              ${FRAMEWORK_DIR}/Game.cpp
-             ${FRAMEWORK_DIR}/JNI.cpp
              ${FRAMEWORK_DIR}/Mesh.cpp
              ${FRAMEWORK_DIR}/Platform.cpp
              ${FRAMEWORK_DIR}/Shader.cpp
              ${FRAMEWORK_DIR}/Texture.cpp
              ${FRAMEWORK_DIR}/Util.cpp
-             src/main/cpp/Example.cpp )
+             src/main/cpp/Example.cpp
+             src/main/cpp/JNI.cpp )
 
 target_include_directories( game PRIVATE
                             ${EXTERNAL_DIR}/include
