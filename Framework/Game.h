@@ -16,7 +16,7 @@ public:
     virtual void Resize(int width, int height);
     void Render();
 
-    void OnTouchMove(float dx, float dy);
+    void OnTouchMove(float dx, float dy, bool is_left);
 
 protected:
     Game() {}
@@ -33,7 +33,8 @@ protected:
     Timer   _timer;
 
     // Input
-    glm::vec2 _input;
+    glm::vec2 _left_input;
+    glm::vec2 _right_input;
 };
 
 extern Game* CreateGame();

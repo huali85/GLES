@@ -51,5 +51,5 @@ JNIEXPORT void JNICALL Java_com_huali_basiclighting_JNILib_Shutdown(JNIEnv *env,
 JNIEXPORT void JNICALL Java_com_huali_basiclighting_JNILib_TouchMove(JNIEnv *env, jclass type, jfloat x, jfloat y) {
     if (!g_game)
         return;
-    g_game->OnTouchMove(x, y);
+    g_game->OnTouchMove(x, y, false);
 }

@@ -85,14 +85,14 @@ Game* CreateGame() {
 
 void Example::Update(float dt) {
     // Process input
-    if (_input.x != 0.0f) {
-        float angle = dt * _input.x;
+    if (_right_input.x != 0.0f) {
+        float angle = dt * _right_input.x;
         glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 0.0f, 1.0f));
         glm::vec4 new_pos = rotate * glm::vec4(_light_pos, 1.0f);
         _light_pos = glm::vec3(new_pos.x, new_pos.y, new_pos.z);
     }
-    if (_input.y != 0.0f) {
-        float angle = dt * _input.y;
+    if (_right_input.y != 0.0f) {
+        float angle = dt * _right_input.y;
         glm::mat4 rotate = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(1.0f, 0.0f, 0.0f));
         glm::vec4 new_pos = rotate * glm::vec4(_light_pos, 1.0f);
         _light_pos = glm::vec3(new_pos.x, new_pos.y, new_pos.z);

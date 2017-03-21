@@ -26,7 +26,12 @@ void Game::Render() {
     Draw();
 }
 
-void Game::OnTouchMove(float dx, float dy) {
-    _input.x = dx;
-    _input.y = dy;
+void Game::OnTouchMove(float dx, float dy, bool is_left) {
+    if (is_left) {
+        _left_input.x = dx;
+        _left_input.y = dy;
+    } else {
+        _right_input.x = dx;
+        _right_input.y = dy;
+    }
 }

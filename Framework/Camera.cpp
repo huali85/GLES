@@ -3,126 +3,73 @@
 //
 
 #include "Camera.h"
-#include "gtx/euler_angles.hpp"
-#include <algorithm>
+#include <glm/gtc/matrix_transform.hpp>
 
-void BaseCamera::Rotate(float diff_yaw, float diff_pitch)
-{
-    m_yaw += diff_yaw;
-    m_pitch += diff_pitch;
+using namespace Camera;
 
-    if (m_pitch > m_max_pitch)
-        m_pitch = m_max_pitch;
-    if (m_pitch < m_min_pitch)
-        m_pitch = m_min_pitch;
-
-    UpdateRotation();
+void CameraConroller::SetProjection(float fov, float aspect, float near_plane, float far_plane) {
+    _camera.fov = fov;
+    _camera.aspect = aspect;
+    _camera.near_plane = near_plane;
+    _camera.far_plane = far_plane;
+    _proj = glm::perspective(glm::radians(fov), aspect, near_plane, far_plane);
 }
 
-const glm::mat4& BaseCamera::GetViewMatrix()
-{
-    if (m_should_update_view) {
-        m_view = glm::lookAt(m_position, m_position + m_front, m_up);
-        m_should_update_view = false;
+const glm::mat4 &CameraConroller::GetViewMatrix() {
+    if (_dirty) {
+        _view = glm::inverse(Transform::GetLocalToWorldMatrix(_camera.transform));
+        _dirty = false;
     }
-    return m_view;
+    return _view;
 }
 
-void BaseCamera::UpdateRotation()
-{
-    //printf("yaw: %f pitch: %f\n", m_yaw, m_pitch);
+FreeCameraController::FreeCameraController(Camera &camera, float speed) :
+    CameraConroller(camera),
+    _speed(speed)
+{ }
 
-    float rad_yaw = glm::radians(m_yaw);
-    float rad_pitch = glm::radians(m_pitch);
-    float cos_pitch = cos(rad_pitch);
-    glm::vec3 front;
-    front.x = cos(rad_yaw) * cos_pitch;
-    front.y = sin(rad_pitch);
-    front.z = sin(rad_yaw) * cos_pitch;
-    m_front = glm::normalize(front);
-    m_right = glm::normalize(glm::cross(m_front, glm::vec3(0.0f, 1.0f, 0.0f)));
-    m_up = glm::normalize(glm::cross(m_right, m_front));
-
-    m_should_update_view = true;
+void FreeCameraController::Rotate(glm::vec2 input) {
+    const float sensitivity = 0.2f;
+    Transform_t& transform = _camera.transform;
+    glm::quat q = glm::angleAxis(-input.x * sensitivity, glm::vec3(0.0f, 1.0f, 0.0f));
+    transform.orientation = q * transform.orientation;
+    glm::vec3 right = Transform::GetRight(transform);
+    q = glm::angleAxis(-input.y * sensitivity, right);
+    transform.orientation = q * transform.orientation;
+    _dirty = true;
 }
 
-void BaseCamera::SetupLookAt(const glm::vec3& pos, const glm::vec3& target, const glm::vec3& up)
-{
-    m_position = pos;
-    m_front = glm::normalize(target - pos);
-    m_up = up;
-
-    m_yaw = glm::degrees(float(atan2(m_front.z, m_front.x)));
-    m_pitch = glm::degrees(asin(m_front.y));
-
-    m_should_update_view = true;
+void FreeCameraController::Move(glm::vec2 input) {
+    Transform_t& transform = _camera.transform;
+    glm::vec3 forward = Transform::GetForward(transform);
+    glm::vec3 right = Transform::GetRight(transform);
+    forward *= -input.y * _speed;
+    right *= input.x * _speed;
+    transform.position += forward;
+    transform.position += right;
+    _dirty = true;
 }
 
-void BaseCamera::SetupProjection(const float fovy, const float aspect_ratio, const float near, const float far)
+TargetCameraController::TargetCameraController(Camera &camera, const glm::vec3 &target) :
+        CameraConroller(camera),
+        _target(target)
 {
-    m_fov = fovy;
-    m_aspect_ratio = aspect_ratio;
-    m_near = near;
-    m_far = far;
-    UpdateProjection();
+    glm::vec3 dir = _target - _camera.transform.position;
+    _distance = sqrt(glm::dot(dir, dir));
+    // Create quaternion from look at matrix
+    glm::mat4 look_at = glm::lookAt(_camera.transform.position, _target, glm::vec3(0.0f, 1.0f, 0.0f));
+    _camera.transform.orientation = glm::conjugate(glm::toQuat(look_at));
 }
 
-void FreeCamera::Move(Movement direction, float dt)
-{
-    float velocity = m_speed * dt;
-    switch (direction)
-    {
-        case FORWARD:
-            m_position += m_front * velocity;
-            break;
-
-        case BACKWARD:
-            m_position -= m_front * velocity;
-            break;
-
-        case LEFT:
-            m_position -= m_right * velocity;
-            break;
-
-        case RIGHT:
-            m_position += m_right * velocity;
-            break;
-    }
-
-    m_should_update_view = true;
-}
-
-void FreeCamera::Zoom(float diff)
-{
-    float old_fov = m_fov;
-    m_fov -= diff;
-    m_fov = glm::clamp(m_fov, 1.0f, 90.0f);
-    if (old_fov != m_fov)
-        UpdateProjection();
-}
-
-void TargetCamera::Zoom(float diff)
-{
-    SetDistance(m_distance - diff);
-}
-
-void TargetCamera::SetupLookAt(const glm::vec3& pos, const glm::vec3& target, const glm::vec3& up)
-{
-    BaseCamera::SetupLookAt(pos, target, up);
-    m_target = target;
-    SetDistance(glm::distance(m_position, m_target));
-}
-
-void TargetCamera::SetDistance(const float distance)
-{
-    m_distance = std::max(m_min_distance, std::min(distance, m_max_distance));
-    m_position = m_target - m_front * m_distance;
-
-    m_should_update_view = true;
-}
-
-void TargetCamera::UpdateRotation()
-{
-    BaseCamera::UpdateRotation();
-    m_position = m_target - m_front * m_distance;
+void TargetCameraController::Rotate(glm::vec2 input) {
+    const float sensitivity = 0.2f;
+    Transform_t& transform = _camera.transform;
+    glm::quat q = glm::angleAxis(-input.x * sensitivity, glm::vec3(0.0f, 1.0f, 0.0f));
+    transform.orientation = q * transform.orientation;
+    glm::vec3 right = Transform::GetRight(transform);
+    q = glm::angleAxis(-input.y * sensitivity, right);
+    transform.orientation = q * transform.orientation;
+    glm::vec3 forward = Transform::GetForward(transform);
+    transform.position = _target - forward * _distance;
+    _dirty = true;
 }
